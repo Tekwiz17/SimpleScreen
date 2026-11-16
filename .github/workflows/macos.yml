@@ -1,0 +1,86 @@
+name: Build and release SimpleScreen
+on: [push, pull_request, workflow_dispatch]
+concurrency:
+  group: simplescreen-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Model and usage parser checks
+        run: |
+          swiftc SimpleScreen/Models.swift Tests/main.swift -o "$RUNNER_TEMP/model-checks"
+          "$RUNNER_TEMP/model-checks"
+      - name: Render every wallpaper and palette
+        run: |
+          swiftc -parse-as-library SimpleScreen/Models.swift SimpleScreen/WallpaperView.swift Tests/RenderChecks.swift -o "$RUNNER_TEMP/render-checks"
+          "$RUNNER_TEMP/render-checks"
+      - name: Check Claude status-line helper
+        run: python3 -m unittest discover -s Tests -p 'test_*.py' -v
+      - name: Build Debug
+        run: |
+          xcodebuild -quiet -project SimpleScreen.xcodeproj -scheme SimpleScreen -configuration Debug -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/SimpleScreenBuild" build
+      - name: Build universal release
+        run: |
+          set -o pipefail
+          xcodebuild -quiet -project SimpleScreen.xcodeproj -scheme SimpleScreen -configuration Release ARCHS='arm64 x86_64' ONLY_ACTIVE_ARCH=NO -destination 'generic/platform=macOS' -derivedDataPath "$RUNNER_TEMP/SimpleScreenBuild" build
+      - name: Validate signature, architectures, icon, and launch
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/SimpleScreenBuild/Build/Products/Release/SimpleScreen.app"
+          codesign --verify --strict "$app"
+          lipo "$app/Contents/MacOS/SimpleScreen" -verify_arch arm64 x86_64
+          test -s "$app/Contents/Resources/AppIcon.icns"
+          plutil -lint "$app/Contents/Info.plist"
+          swiftc Tests/LiveLaunch.swift -o "$RUNNER_TEMP/live-launch"
+          "$app/Contents/MacOS/SimpleScreen" > "$RUNNER_TEMP/launch.log" 2>&1 &
+          pid=$!
+          trap 'kill "$pid" 2>/dev/null || true' EXIT
+          sleep 8
+          if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/launch.log"; exit 1; fi
+          "$RUNNER_TEMP/live-launch" "$pid"
+          ditto -c -k --keepParent "$app" "$RUNNER_TEMP/SimpleScreen-macOS.zip"
+          cd "$RUNNER_TEMP"
+          shasum -a 256 SimpleScreen-macOS.zip > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimpleScreen-macOS
+          path: |
+            ${{ runner.temp }}/SimpleScreen-macOS.zip
+            ${{ runner.temp }}/SHA256SUMS.txt
+          if-no-files-found: error
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: SimpleScreen-macOS
+          path: packaged
+      - name: Publish tested app
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version=$(python3 -c 'import plistlib; print(plistlib.load(open("SimpleScreen/Info.plist","rb"))["CFBundleShortVersionString"])')
+          tag="v$version"
+          unzip -tq packaged/SimpleScreen-macOS.zip
+          (cd packaged && sha256sum --check SHA256SUMS.txt)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists. Increment CFBundleShortVersionString for a new release."
+            exit 0
+          fi
+          gh release create "$tag" packaged/SimpleScreen-macOS.zip packaged/SHA256SUMS.txt --target "$GITHUB_SHA" --title "SimpleScreen $version" --notes-file "releases/$version.md"
+          gh release download "$tag" --pattern SimpleScreen-macOS.zip --dir "$RUNNER_TEMP/released"
+          cmp packaged/SimpleScreen-macOS.zip "$RUNNER_TEMP/released/SimpleScreen-macOS.zip"
