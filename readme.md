@@ -53,7 +53,7 @@ Weather sends configured coordinates and requested weather variables to Open-Met
 
 AI values are **last recorded account snapshots**, not a promise of live remaining usage. Missing windows are not fabricated; readings older than 15 minutes and passed reset times are labeled. Reading Codex history may change if its file format changes.
 
-Wallpaper settings currently apply to every display; widgets can be assigned separately. When a display disconnects, its widgets appear on the main display and return when it reconnects. Full-screen apps, Mission Control, and Stage Manager behavior is governed by macOS window management. Glass is native backdrop blur with a translucent highlight treatment, rather than a dependency on the macOS 26-only Liquid Glass API.
+Wallpaper settings currently apply to every display; widgets can be assigned separately. When a display disconnects, its widgets appear on the main display and return when it reconnects. Full-screen apps, Mission Control, and Stage Manager behavior is governed by macOS window management. Glass uses native Liquid Glass on macOS 26 when built with Xcode 26+, with native backdrop blur and translucent highlights on earlier macOS versions.
 
 Weather effects are procedural visual effects, not photographic video. The Calendar widget shows the current week and opens Calendar; it does not read private events. Battery reports the Mac power source, not paired Bluetooth accessory batteries. The Focus timer stores its end date, so it survives app relaunch.
 

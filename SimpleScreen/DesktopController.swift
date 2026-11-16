@@ -3,6 +3,7 @@ import SwiftUI
 import Combine
 
 final class DesktopPanel: NSPanel {
+    var dragging = false
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
 }
@@ -28,6 +29,7 @@ final class DesktopPanel: NSPanel {
         guard store.preferences.enabled else {
             wallpapers.values.forEach { $0.orderOut(nil) }
             widgets.values.forEach { $0.orderOut(nil) }
+            effects.forEach { $0.close() }; effects.removeAll()
             return
         }
         let screens = NSScreen.screens
@@ -73,11 +75,14 @@ final class DesktopPanel: NSPanel {
                 panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
                 panel.delegate = self
                 widgets[widget.id] = panel
-                panel.contentView = NSHostingView(rootView: DesktopWidgetView(store: store, services: store.services, id: widget.id, effect: { [weak self] kind in self?.showEffect(kind, on: screen) }))
+                panel.contentView = NSHostingView(rootView: DesktopWidgetView(store: store, services: store.services, id: widget.id, effect: { [weak self] kind in
+                    guard let self, let activeScreen = self.widgets[widget.id]?.screen else { return }
+                    self.showEffect(kind, on: activeScreen)
+                }))
             }
             panel.level = NSWindow.Level(rawValue: CGWindowLevelForKey(.desktopIconWindow) + 1)
             panel.ignoresMouseEvents = !store.editing && !widget.interaction
-            if panel.frame != frame { panel.setFrame(frame, display: true) }
+            if !panel.dragging && panel.frame != frame { panel.setFrame(frame, display: true) }
             panel.orderFrontRegardless()
         }
     }
@@ -123,7 +128,11 @@ struct DragHandle: NSViewRepresentable {
         var enabled = true
         override func mouseDown(with event: NSEvent) {
             guard enabled else { return }
-            window?.performDrag(with: event)
+            guard let panel = window as? DesktopPanel else { return }
+            panel.dragging = true
+            panel.performDrag(with: event)
+            panel.dragging = false
+            NotificationCenter.default.post(name: NSWindow.didMoveNotification, object: panel)
         }
         override func resetCursorRects() {
             if enabled { addCursorRect(bounds, cursor: .openHand) }

@@ -9,6 +9,7 @@ import UniformTypeIdentifiers
     @Published var selectedWidget: UUID?
     @Published var error: String?
     @Published var sleeping = false
+    @Published var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     @Published var lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
     let services = Services()
     var onChange: (() -> Void)?
@@ -42,6 +43,9 @@ import UniformTypeIdentifiers
         NotificationCenter.default.addObserver(forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled }
         }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+        }
         NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.sleeping = true }
         }
@@ -50,7 +54,7 @@ import UniformTypeIdentifiers
         }
     }
     var animate: Bool {
-        preferences.enabled && !sleeping && !lowPower && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion && !(preferences.pauseOnBattery && services.onBattery)
+        preferences.enabled && !sleeping && !lowPower && !reduceMotion && !(preferences.pauseOnBattery && services.onBattery)
     }
     func save() {
         do {

@@ -54,8 +54,7 @@ struct DesktopWidgetView: View {
     @ViewBuilder private func surface(_ w: DesktopWidget) -> some View {
         switch w.surface {
         case .glass:
-            GlassBackground()
-            LinearGradient(colors: [.white.opacity(0.14), Color(hex: w.background).opacity(w.opacity * 0.35), .white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing)
+            WidgetGlass(tint: Color(hex: w.background), opacity: w.opacity)
         case .solid: Color(hex: w.background).opacity(w.opacity)
         case .clear: Color.clear
         }
@@ -179,5 +178,27 @@ struct DesktopWidgetView: View {
                 }.font(.system(size: 10)).opacity(0.65)
             }
         }.contentShape(Rectangle()).onTapGesture { Task { await services.refresh() } }
+    }
+}
+
+struct WidgetGlass: View {
+    let tint: Color
+    let opacity: Double
+    var body: some View {
+        #if compiler(>=6.2)
+        if #available(macOS 26.0, *) {
+            Color.clear.glassEffect(.regular.tint(tint.opacity(opacity * 0.35)), in: RoundedRectangle(cornerRadius: 24))
+        } else {
+            fallback
+        }
+        #else
+        fallback
+        #endif
+    }
+    private var fallback: some View {
+        ZStack {
+            GlassBackground()
+            LinearGradient(colors: [.white.opacity(0.14), tint.opacity(opacity * 0.35), .white.opacity(0.03)], startPoint: .topLeading, endPoint: .bottomTrailing)
+        }
     }
 }

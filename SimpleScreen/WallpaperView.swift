@@ -25,55 +25,74 @@ struct WallpaperCanvas: View {
     let time: Double
     var colors: [Color] { wallpaper.colors.isEmpty ? [.black, .blue, .white] : wallpaper.colors.map { Color(hex: $0) } }
     var body: some View {
-        Canvas { context, size in
-            let rect = CGRect(origin: .zero, size: size)
-            let angle = wallpaper.angle * .pi / 180
-            let start = CGPoint(x: size.width * (0.5 - cos(angle) * 0.5), y: size.height * (0.5 - sin(angle) * 0.5))
-            let end = CGPoint(x: size.width - start.x, y: size.height - start.y)
-            context.fill(Path(rect), with: .linearGradient(Gradient(colors: colors), startPoint: start, endPoint: end))
-            switch wallpaper.style {
-            case .aurora:
-                context.addFilter(.blur(radius: size.width * 0.065))
-                for index in 0..<5 {
-                    let phase = Double(index) * 1.9 + time
-                    let center = CGPoint(x: size.width * (0.5 + sin(phase * 0.7) * 0.4), y: size.height * (0.5 + cos(phase * 0.6) * 0.4))
-                    let radius = size.width * 0.55
-                    let blob = CGRect(x: center.x - radius / 2, y: center.y - radius / 2, width: radius, height: radius * 0.7)
-                    context.fill(Path(ellipseIn: blob), with: .radialGradient(Gradient(colors: [colors[index % colors.count].opacity(0.85), .clear]), center: center, startRadius: 0, endRadius: radius / 2))
-                }
-            case .dunes:
-                for index in 0..<6 {
-                    var path = Path()
-                    let y = size.height * (0.28 + Double(index) * 0.13)
-                    path.move(to: CGPoint(x: -10, y: y))
-                    path.addCurve(to: CGPoint(x: size.width + 10, y: y + size.height * 0.12),
-                                  control1: CGPoint(x: size.width * 0.3, y: y - size.height * (0.28 + sin(time + Double(index)) * 0.06)),
-                                  control2: CGPoint(x: size.width * 0.65, y: y + size.height * 0.3))
-                    path.addLine(to: CGPoint(x: size.width + 10, y: size.height + 10))
-                    path.addLine(to: CGPoint(x: -10, y: size.height + 10))
-                    path.closeSubpath()
-                    context.fill(path, with: .linearGradient(Gradient(colors: [colors[index % colors.count].opacity(0.6), colors[(index + 1) % colors.count]]), startPoint: CGPoint(x: 0, y: y), endPoint: CGPoint(x: size.width, y: size.height)))
-                    context.stroke(path, with: .color(.white.opacity(0.12)), lineWidth: 1)
-                }
-            case .orbit:
-                for index in 0..<7 {
-                    let radius = size.height * (0.12 + Double(index) * 0.085)
-                    let center = CGPoint(x: size.width * (0.55 + sin(time) * 0.08), y: size.height * 0.47)
-                    let ellipse = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-                    context.stroke(Path(ellipseIn: ellipse), with: .linearGradient(Gradient(colors: [.white.opacity(0.5), .clear, colors[index % colors.count]]), startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)), lineWidth: max(1, size.height * 0.012))
-                }
-            case .contour:
-                for index in 0..<36 {
-                    var path = Path()
-                    for step in 0...80 {
-                        let x = Double(step) / 80 * size.width
-                        let y = Double(index) / 30 * size.height + sin(x / size.width * 7 + time + Double(index) * 0.09) * size.height * 0.12
-                        if step == 0 { path.move(to: CGPoint(x: x, y: y)) } else { path.addLine(to: CGPoint(x: x, y: y)) }
-                    }
-                    context.stroke(path, with: .color(.white.opacity(0.2)), lineWidth: 1)
-                }
-            default: break
+        Canvas { context, size in draw(context: &context, size: size) }
+    }
+    private func draw(context: inout GraphicsContext, size: CGSize) {
+        let angle: Double = wallpaper.angle * .pi / 180
+        let start = CGPoint(x: size.width * CGFloat(0.5 - cos(angle) * 0.5), y: size.height * CGFloat(0.5 - sin(angle) * 0.5))
+        let end = CGPoint(x: size.width - start.x, y: size.height - start.y)
+        let gradient = Gradient(colors: colors)
+        context.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(gradient, startPoint: start, endPoint: end))
+        switch wallpaper.style {
+        case .aurora: aurora(context: &context, size: size)
+        case .dunes: dunes(context: &context, size: size)
+        case .orbit: orbit(context: &context, size: size)
+        case .contour: contour(context: &context, size: size)
+        default: break
+        }
+    }
+    private func aurora(context: inout GraphicsContext, size: CGSize) {
+        context.addFilter(.blur(radius: size.width * 0.065))
+        for index in 0..<5 {
+            let phase = Double(index) * 1.9 + time
+            let x = size.width * CGFloat(0.5 + sin(phase * 0.7) * 0.4)
+            let y = size.height * CGFloat(0.5 + cos(phase * 0.6) * 0.4)
+            let center = CGPoint(x: x, y: y)
+            let radius = size.width * 0.55
+            let blob = CGRect(x: x - radius / 2, y: y - radius / 2, width: radius, height: radius * 0.7)
+            let gradient = Gradient(colors: [colors[index % colors.count].opacity(0.85), Color.clear])
+            context.fill(Path(ellipseIn: blob), with: .radialGradient(gradient, center: center, startRadius: 0, endRadius: radius / 2))
+        }
+    }
+    private func dunes(context: inout GraphicsContext, size: CGSize) {
+        for index in 0..<6 {
+            var path = Path()
+            let y = size.height * CGFloat(0.28 + Double(index) * 0.13)
+            let lift = size.height * CGFloat(0.28 + sin(time + Double(index)) * 0.06)
+            path.move(to: CGPoint(x: -10, y: y))
+            let end = CGPoint(x: size.width + 10, y: y + size.height * 0.12)
+            let first = CGPoint(x: size.width * 0.3, y: y - lift)
+            let second = CGPoint(x: size.width * 0.65, y: y + size.height * 0.3)
+            path.addCurve(to: end, control1: first, control2: second)
+            path.addLine(to: CGPoint(x: size.width + 10, y: size.height + 10))
+            path.addLine(to: CGPoint(x: -10, y: size.height + 10))
+            path.closeSubpath()
+            let gradient = Gradient(colors: [colors[index % colors.count].opacity(0.6), colors[(index + 1) % colors.count]])
+            context.fill(path, with: .linearGradient(gradient, startPoint: CGPoint(x: 0, y: y), endPoint: CGPoint(x: size.width, y: size.height)))
+            context.stroke(path, with: .color(Color.white.opacity(0.12)), lineWidth: 1)
+        }
+    }
+    private func orbit(context: inout GraphicsContext, size: CGSize) {
+        for index in 0..<7 {
+            let radius = size.height * CGFloat(0.12 + Double(index) * 0.085)
+            let center = CGPoint(x: size.width * CGFloat(0.55 + sin(time) * 0.08), y: size.height * 0.47)
+            let ellipse = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
+            let gradient = Gradient(colors: [Color.white.opacity(0.5), Color.clear, colors[index % colors.count]])
+            context.stroke(Path(ellipseIn: ellipse), with: .linearGradient(gradient, startPoint: .zero, endPoint: CGPoint(x: size.width, y: size.height)), lineWidth: max(1, size.height * 0.012))
+        }
+    }
+    private func contour(context: inout GraphicsContext, size: CGSize) {
+        for index in 0..<36 {
+            var path = Path()
+            for step in 0...80 {
+                let progress = Double(step) / 80
+                let x = CGFloat(progress) * size.width
+                let wave = sin(progress * 7 + time + Double(index) * 0.09)
+                let y = CGFloat(Double(index) / 30 + wave * 0.12) * size.height
+                let point = CGPoint(x: x, y: y)
+                if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
             }
+            context.stroke(path, with: .color(Color.white.opacity(0.2)), lineWidth: 1)
         }
     }
 }

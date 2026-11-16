@@ -53,3 +53,5 @@ task.executableURL = URL(fileURLWithPath: "/usr/bin/iconutil")
 task.arguments = ["-c", "icns", directory.path, "-o", destination]
 try task.run(); task.waitUntilExit()
 guard task.terminationStatus == 0 else { fatalError("iconutil failed") }
+
+try FileManager.default.removeItem(at: directory)

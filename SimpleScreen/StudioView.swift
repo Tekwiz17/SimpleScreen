@@ -239,7 +239,7 @@ struct StudioView: View {
             card {
                 Label("A smaller footprint", systemImage: "leaf").font(.headline)
                 Text("Procedural animation runs at 24 fps. Images render without a repeating animation timer. GIFs use their own frame timings. Weather refreshes every 15 minutes; battery and connected usage refresh every minute.").font(.caption).foregroundStyle(.secondary)
-                Text("Glass uses native backdrop blur on macOS 14 and later. Desktop effects work without Accessibility or Screen Recording access.").font(.caption).foregroundStyle(.secondary)
+                Text("Glass uses Liquid Glass on macOS 26 builds and native backdrop blur on earlier versions. Desktop effects work without Accessibility or Screen Recording access.").font(.caption).foregroundStyle(.secondary)
             }
             HStack {
                 Link("MIT License", destination: URL(string: "https://github.com/Tekwiz17/SimpleScreen/blob/main/LICENSE")!)
