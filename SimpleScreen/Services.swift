@@ -170,3 +170,25 @@ enum LocalUsage {
         return result
     }
 }
+
+struct WeatherLocation: Decodable, Identifiable {
+    let id: Int
+    let name: String
+    let latitude: Double
+    let longitude: Double
+    let country: String?
+    let admin1: String?
+    var label: String { [name, admin1, country].compactMap { $0 }.joined(separator: ", ") }
+}
+enum LocationSearch {
+    static func find(_ query: String) async throws -> [WeatherLocation] {
+        var components = URLComponents(string: "https://geocoding-api.open-meteo.com/v1/search")!
+        components.queryItems = [.init(name: "name", value: query), .init(name: "count", value: "6"), .init(name: "language", value: "en"), .init(name: "format", value: "json")]
+        var request = URLRequest(url: components.url!)
+        request.timeoutInterval = 15
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
+        struct Response: Decodable { let results: [WeatherLocation]? }
+        return try JSONDecoder().decode(Response.self, from: data).results ?? []
+    }
+}

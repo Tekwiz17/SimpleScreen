@@ -144,47 +144,62 @@ struct WeatherEffect: View {
     @State private var start = Date()
     var body: some View {
         TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
-            let t = timeline.date.timeIntervalSince(start)
             Canvas { context, size in
-                let fade = min(1, t / 0.7) * max(0, min(1, (8 - t) / 1.5))
-                context.opacity = fade
-                if kind == "sun" {
-                    let center = CGPoint(x: size.width * 0.78, y: size.height * 0.12)
-                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .radialGradient(Gradient(colors: [.white.opacity(0.9), .yellow.opacity(0.18), .clear]), center: center, startRadius: 0, endRadius: size.width * 0.7))
-                    for i in 0..<9 {
-                        var ray = Path()
-                        let a = Double(i) * 0.21 + 0.8 + sin(t * 0.2) * 0.05
-                        ray.move(to: center)
-                        ray.addLine(to: CGPoint(x: center.x + cos(a) * size.width, y: center.y + sin(a) * size.width))
-                        ray.addLine(to: CGPoint(x: center.x + cos(a + 0.06) * size.width, y: center.y + sin(a + 0.06) * size.width))
-                        ray.closeSubpath()
-                        context.fill(ray, with: .color(.white.opacity(0.035)))
-                    }
-                } else {
-                    let snow = kind == "snow"
-                    for i in 0..<(snow ? 180 : 280) {
-                        let seed = Double(i)
-                        let depth = 0.3 + fraction(sin(seed * 12.9898) * 43758.5453) * 0.7
-                        let x0 = fraction(sin(seed * 78.233) * 19341.123) * size.width
-                        let speed = (snow ? 45.0 : 700.0) * depth
-                        let y = (fraction(seed * 0.618) * (size.height + 100) + t * speed).truncatingRemainder(dividingBy: size.height + 100) - 50
-                        let x = x0 + (snow ? sin(t * 0.8 + seed) * 35 : -y * 0.08)
-                        if snow {
-                            let radius = 1 + depth * 3.5
-                            context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: radius * 2, height: radius * 2)), with: .radialGradient(Gradient(colors: [.white.opacity(depth), .white.opacity(0.1)]), center: CGPoint(x: x + radius, y: y + radius), startRadius: 0, endRadius: radius))
-                        } else {
-                            var line = Path()
-                            line.move(to: CGPoint(x: x, y: y))
-                            line.addLine(to: CGPoint(x: x - 2, y: y + 18 * depth))
-                            context.stroke(line, with: .color(.white.opacity(0.18 + depth * 0.3)), lineWidth: depth)
-                            let rippleY = size.height * (0.87 + fraction(seed * 0.391) * 0.13)
-                            let ripple = fraction(t * 1.5 + seed * 0.17)
-                            context.stroke(Path(ellipseIn: CGRect(x: x0, y: rippleY, width: ripple * 20, height: ripple * 5)), with: .color(.white.opacity((1 - ripple) * 0.15)), lineWidth: 0.6)
-                        }
-                    }
-                }
+                draw(context: &context, size: size, elapsed: timeline.date.timeIntervalSince(start))
             }
         }.allowsHitTesting(false)
+    }
+    private func draw(context: inout GraphicsContext, size: CGSize, elapsed: Double) {
+        let fadeIn = min(1.0, elapsed / 0.7)
+        let fadeOut = max(0.0, min(1.0, (8 - elapsed) / 1.5))
+        context.opacity = fadeIn * fadeOut
+        if kind == "sun" { sun(context: &context, size: size, time: elapsed) }
+        else { particles(context: &context, size: size, time: elapsed, snow: kind == "snow") }
+    }
+    private func sun(context: inout GraphicsContext, size: CGSize, time: Double) {
+        let center = CGPoint(x: size.width * 0.78, y: size.height * 0.12)
+        let gradient = Gradient(colors: [Color.white.opacity(0.9), Color.yellow.opacity(0.18), Color.clear])
+        context.fill(Path(CGRect(origin: .zero, size: size)), with: .radialGradient(gradient, center: center, startRadius: 0, endRadius: size.width * 0.7))
+        for index in 0..<9 {
+            let angle = Double(index) * 0.21 + 0.8 + sin(time * 0.2) * 0.05
+            let first = CGPoint(x: center.x + CGFloat(cos(angle)) * size.width, y: center.y + CGFloat(sin(angle)) * size.width)
+            let second = CGPoint(x: center.x + CGFloat(cos(angle + 0.06)) * size.width, y: center.y + CGFloat(sin(angle + 0.06)) * size.width)
+            var ray = Path()
+            ray.move(to: center); ray.addLine(to: first); ray.addLine(to: second); ray.closeSubpath()
+            context.fill(ray, with: .color(Color.white.opacity(0.035)))
+        }
+    }
+    private func particles(context: inout GraphicsContext, size: CGSize, time: Double, snow: Bool) {
+        let width = Double(size.width), height = Double(size.height)
+        let count = snow ? 180 : 280
+        for index in 0..<count {
+            let seed = Double(index)
+            let depth = 0.3 + fraction(sin(seed * 12.9898) * 43758.5453) * 0.7
+            let x0 = fraction(sin(seed * 78.233) * 19341.123) * width
+            let speed = (snow ? 45.0 : 700.0) * depth
+            let startY = fraction(seed * 0.618) * (height + 100)
+            let y = (startY + time * speed).truncatingRemainder(dividingBy: height + 100) - 50
+            let drift = snow ? sin(time * 0.8 + seed) * 35 : -y * 0.08
+            let x = x0 + drift
+            if snow { flake(context: &context, x: x, y: y, depth: depth) }
+            else { rain(context: &context, x: x, y: y, x0: x0, height: height, depth: depth, seed: seed, time: time) }
+        }
+    }
+    private func flake(context: inout GraphicsContext, x: Double, y: Double, depth: Double) {
+        let radius = 1 + depth * 3.5
+        let rect = CGRect(x: x, y: y, width: radius * 2, height: radius * 2)
+        let gradient = Gradient(colors: [Color.white.opacity(depth), Color.white.opacity(0.1)])
+        context.fill(Path(ellipseIn: rect), with: .radialGradient(gradient, center: CGPoint(x: x + radius, y: y + radius), startRadius: 0, endRadius: radius))
+    }
+    private func rain(context: inout GraphicsContext, x: Double, y: Double, x0: Double, height: Double, depth: Double, seed: Double, time: Double) {
+        var line = Path()
+        line.move(to: CGPoint(x: x, y: y))
+        line.addLine(to: CGPoint(x: x - 2, y: y + 18 * depth))
+        context.stroke(line, with: .color(Color.white.opacity(0.18 + depth * 0.3)), lineWidth: depth)
+        let rippleY = height * (0.87 + fraction(seed * 0.391) * 0.13)
+        let ripple = fraction(time * 1.5 + seed * 0.17)
+        let rect = CGRect(x: x0, y: rippleY, width: ripple * 20, height: ripple * 5)
+        context.stroke(Path(ellipseIn: rect), with: .color(Color.white.opacity((1 - ripple) * 0.15)), lineWidth: 0.6)
     }
     private func fraction(_ n: Double) -> Double { n - floor(n) }
 }

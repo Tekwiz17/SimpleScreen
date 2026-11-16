@@ -3,7 +3,16 @@ import AppKit
 
 @main struct SimpleScreenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
-    var body: some Scene { Settings { EmptyView() } }
+    var body: some Scene {
+        Settings { EmptyView() }
+            .commands {
+                CommandGroup(replacing: .appSettings) {
+                    Button("SimpleScreen Settings…") {
+                        NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil)
+                    }.keyboardShortcut(",", modifiers: .command)
+                }
+            }
+    }
 }
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = Store()
@@ -15,7 +24,7 @@ import AppKit
         store.onChange = { [weak self] in self?.apply() }
         NotificationCenter.default.addObserver(self, selector: #selector(openSettings), name: .openSimpleScreenSettings, object: nil)
         apply()
-        if !store.preferences.onboardingComplete { openSettings() }
+        openSettings()
     }
     func apply() {
         store.services.configure(store.preferences)

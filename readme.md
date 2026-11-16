@@ -43,13 +43,13 @@ The app is at `build/Build/Products/Release/SimpleScreen.app`.
 
 - [AI usage setup](docs/AI-USAGE.md): local Codex snapshots and the opt-in Claude Code status-line helper.
 - [HTML widget guide](docs/HTML-WIDGETS.md): self-contained HTML, CSS, and click interactions. HTTPS access is opt-in.
-- Weather uses [Open-Meteo](https://open-meteo.com/) current conditions, attributed under CC BY 4.0. Enter your own coordinates; automatic location is not requested.
+- Weather uses [Open-Meteo](https://open-meteo.com/) current conditions, attributed under CC BY 4.0. Search for your city or enter coordinates; automatic location is not requested.
 
 ## Privacy and behavior
 
 Preferences and copied images are stored in `~/Library/Application Support/SimpleScreen/`. No analytics, account system, credential scraping, or telemetry.
 
-Weather sends configured coordinates and requested weather variables to Open-Meteo. Codex reading is opt-in and bounded to recent session-file tails; nothing is uploaded. The Claude helper extracts only rate-limit percentages/reset times. HTML uses an ephemeral WebKit data store, a restrictive content-security policy, blocked navigation, and no native script bridge.
+Weather sends configured coordinates and requested weather variables to Open-Meteo; city searches go to its GeoNames-based geocoding service. Codex reading is opt-in and bounded to recent session-file tails; nothing is uploaded. The Claude helper extracts only rate-limit percentages/reset times. HTML uses an ephemeral WebKit data store, a restrictive content-security policy, blocked navigation, and no native script bridge.
 
 AI values are **last recorded account snapshots**, not a promise of live remaining usage. Missing windows are not fabricated; readings older than 15 minutes and passed reset times are labeled. Reading Codex history may change if its file format changes.
 

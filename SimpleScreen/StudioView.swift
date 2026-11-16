@@ -7,6 +7,10 @@ struct StudioView: View {
     @ObservedObject var store: Store
     @ObservedObject var services: Services
     @State private var page = "Wallpapers"
+    @State private var locationQuery = ""
+    @State private var locations: [WeatherLocation] = []
+    @State private var findingLocation = false
+    @State private var locationStatus = ""
     @State private var login = SMAppService.mainApp.status == .enabled
     private let pages = [("Wallpapers", "paintpalette"), ("Widgets", "square.grid.2x2"), ("Connections", "link"), ("Settings", "slider.horizontal.3")]
     var body: some View {
@@ -190,7 +194,30 @@ struct StudioView: View {
             card {
                 Label("Weather", systemImage: "cloud.sun").font(.headline)
                 Toggle("Get current conditions from Open-Meteo", isOn: $store.preferences.weatherEnabled)
-                Text("Your chosen coordinates are sent to Open-Meteo only when enabled. No location permission or API key required.").font(.caption).foregroundStyle(.secondary)
+                Text("When enabled, your chosen coordinates go to Open-Meteo. Find city sends your search to its GeoNames-based location service. No location permission or API key required.").font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    TextField("Search city", text: $locationQuery, prompt: Text("City or postal code"))
+                    Button(findingLocation ? "Searching…" : "Find city") {
+                        findingLocation = true
+                        Task {
+                            defer { findingLocation = false }
+                            do {
+                                locations = try await LocationSearch.find(locationQuery)
+                                locationStatus = locations.isEmpty ? "No matching places. Try city, state or country." : "Choose your location:"
+                            } catch { locationStatus = "Search unavailable. You can enter coordinates below."; locations = [] }
+                        }
+                    }.disabled(findingLocation || locationQuery.trimmingCharacters(in: .whitespaces).count < 2 || !store.preferences.weatherEnabled)
+                }
+                if !locationStatus.isEmpty { Text(locationStatus).font(.caption).foregroundStyle(.secondary) }
+                ForEach(locations) { location in
+                    Button(location.label) {
+                        store.preferences.city = location.name
+                        store.preferences.latitude = location.latitude
+                        store.preferences.longitude = location.longitude
+                        locations = []
+                        locationStatus = "Location updated"
+                    }.buttonStyle(.link).font(.caption)
+                }
                 TextField("Location name", text: $store.preferences.city)
                 HStack {
                     TextField("Latitude", value: $store.preferences.latitude, format: .number)
