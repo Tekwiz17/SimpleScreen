@@ -8,7 +8,10 @@
 
 - **Wallpaper studio:** Aurora, Gradient, Dunes, Orbit, Contour, Ripple, Starlight, and Ribbons; eight original palettes; two to five custom colors; adjustable direction and motion.
 - **Your own images:** import still images or animated GIFs. Fit or fill. Originals are copied into Application Support.
-- **27 widgets:** Clock, Weather, Battery, Calendar, Focus, Note, AI Usage, HTML, Device Batteries, World Clock, Analog Clock, Countdown, Stopwatch, Checklist, Habit, Water, Breathe, Daily Thought, Day Progress, Storage, Memory, Uptime, Quick Links, Calculator, Dice, Color Studio, and Weather Details.
+- **29 widgets:** Clock, Weather, Battery, Calendar, Focus, Note, AI Usage, HTML, Device Batteries, World Clock, Analog Clock, Countdown, Stopwatch, Checklist, Habit, Water, Breathe, Daily Thought, Day Progress, Storage, Memory, Uptime, Quick Links, Calculator, Dice, Color Studio, Weather Details, App & Folder Launcher, and Now Playing.
+- **Launchers:** actual app/folder icons, searchable picker, configurable grids, labels, and one-click opening.
+- **Now Playing:** opt-in Music/Spotify controls and supported browser current-tab audio/video. [Setup and limits](docs/NOW-PLAYING.md).
+- **Search and updates:** global search, widget synonyms, release notes, and a verified in-app update flow. [Guide](docs/LAUNCHERS-AND-UPDATES.md).
 - **Personal styling:** glass, solid-color, or transparent surfaces; text/tint colors, opacity, fonts, dimensions, and display assignment.
 - **Arrange mode:** drag widgets by their top handles, with optional grid snapping. Layout survives relaunch.
 - **Weather you can touch:** click for layered rain and surface ripples, drifting snow, or sun rays. Effects last eight seconds and can be disabled.
@@ -60,7 +63,7 @@ Weather effects are procedural visual effects, not photographic video. The Calen
 
 ## CI and releases
 
-Every push and PR runs model/usage checks, all 64 wallpaper-palette render-and-motion combinations plus native desktop redraw/pause/resume checks, Python bridge tests, Debug and universal Release builds, signature/architecture/icon validation, and live first-launch/all-27-widget window checks on macOS. A successful push to main publishes a versioned ZIP plus SHA-256 checksum. Increment the version in `SimpleScreen/Info.plist` and add matching notes under `releases/` for subsequent releases.
+Every push and PR runs model/usage checks, all 64 wallpaper-palette render-and-motion combinations plus native desktop redraw/pause/resume checks, Python bridge and browser-media tests, real-release update preparation checks, Debug and universal Release builds, signature/architecture/icon validation, and live first-launch/all-29-widget window checks on macOS. A successful push to main publishes a versioned ZIP plus SHA-256 checksum. Increment the version in `SimpleScreen/Info.plist` and add matching notes under `releases/` for subsequent releases.
 
 CI cannot establish behavior on every physical display, a real user's weather/network connection, real subscribed AI accounts, or all macOS window-management configurations. See [manual checks](docs/TESTING.md).
 

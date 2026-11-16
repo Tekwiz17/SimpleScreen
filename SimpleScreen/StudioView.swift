@@ -8,12 +8,14 @@ struct StudioView: View {
     @ObservedObject var services: Services
     @State private var page = "Wallpapers"
     @State private var widgetSearch = ""
+    @State private var globalSearch = ""
+    @StateObject private var updater = UpdateService()
     @State private var locationQuery = ""
     @State private var locations: [WeatherLocation] = []
     @State private var findingLocation = false
     @State private var locationStatus = ""
     @State private var login = SMAppService.mainApp.status == .enabled
-    private let pages = [("Wallpapers", "paintpalette"), ("Widgets", "square.grid.2x2"), ("Connections", "link"), ("Settings", "slider.horizontal.3")]
+    private let pages = [("Wallpapers", "paintpalette"), ("Widgets", "square.grid.2x2"), ("Connections", "link"), ("Settings", "slider.horizontal.3"), ("Updates", "arrow.down.circle")]
     var body: some View {
         HStack(spacing: 0) {
             sidebar
@@ -28,12 +30,14 @@ struct StudioView: View {
                         Spacer()
                         Toggle("Desktop", isOn: $store.preferences.enabled).toggleStyle(.switch).controlSize(.small).fixedSize()
                     }
-                    switch page {
+                    if !globalSearch.trimmingCharacters(in: .whitespaces).isEmpty { searchResults }
+                    else { switch page {
                     case "Wallpapers": wallpaperPage
                     case "Widgets": widgetPage
                     case "Connections": connections
+                    case "Updates": UpdatesView(updater: updater)
                     default: settings
-                    }
+                    } }
                 }.padding(32)
             }.background(Color(nsColor: .windowBackgroundColor))
         }
@@ -41,7 +45,11 @@ struct StudioView: View {
         .tint(Color(hex: "398A91"))
         .sheet(isPresented: Binding(get: { !store.preferences.onboardingComplete }, set: { if !$0 { store.preferences.onboardingComplete = true } })) { welcome }
         .alert("SimpleScreen", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) { Button("OK") { store.error = nil } } message: { Text(store.error ?? "") }
-        .onChange(of: store.selectedWidget) { _, value in if value != nil { page = "Widgets" } }
+        .onReceive(store.$requestedPage) { requested in
+            guard let requested else { return }
+            page = requested; globalSearch = ""; store.requestedPage = nil
+        }
+        .onChange(of: store.selectedWidget) { _, value in if value != nil { page = "Widgets"; globalSearch = "" } }
     }
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -53,9 +61,10 @@ struct StudioView: View {
                     Text("A little more you.").font(.system(size: 10)).foregroundStyle(.secondary)
                 }
             }.padding(.top, 22)
+            TextField("Search SimpleScreen…", text: $globalSearch).textFieldStyle(.roundedBorder)
             VStack(spacing: 6) {
                 ForEach(pages, id: \.0) { item in
-                    Button { page = item.0 } label: {
+                    Button { page = item.0; globalSearch = "" } label: {
                         HStack(spacing: 11) {
                             Image(systemName: item.1).frame(width: 19)
                             Text(item.0)
@@ -70,7 +79,7 @@ struct StudioView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Made to feel like yours.", systemImage: "sparkle").font(.system(size: 11)).foregroundStyle(.secondary)
                 Link("Open source on GitHub ↗", destination: URL(string: "https://github.com/Tekwiz17/SimpleScreen")!).font(.system(size: 11))
-                Text("SimpleScreen 1.1.0").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text("SimpleScreen 1.2.0").font(.system(size: 10)).foregroundStyle(.tertiary)
             }
         }.padding(18).frame(width: 204).background(.ultraThinMaterial)
     }
@@ -79,8 +88,44 @@ struct StudioView: View {
         case "Wallpapers": return "Make a backdrop that feels like home."
         case "Widgets": return "Small things. Right where you want them."
         case "Connections": return "Useful information, with you in control."
+        case "Updates": return "See what’s new. Keep your desktop up to date."
         default: return "Quietly working in the background."
         }
+    }
+
+    private var searchResults: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Results for “\(globalSearch)”").font(.headline)
+            ForEach(WidgetKind.allCases.filter { $0.matches(globalSearch) }) { kind in
+                searchRow(kind.rawValue, detail: "Add desktop widget", symbol: kind.symbol) { store.add(kind); page = "Widgets"; globalSearch = "" }
+            }
+            ForEach(WallpaperStyle.allCases.filter { SearchText.matches(globalSearch, in: $0.rawValue + " wallpaper background motion animation") }) { style in
+                searchRow(style.rawValue, detail: "Wallpaper design", symbol: "paintpalette") {
+                    store.preferences.wallpaper.style = style
+                    page = "Wallpapers"; globalSearch = ""
+                    if style == .image && store.preferences.wallpaper.mediaPath == nil { store.importMedia() }
+                }
+            }
+            ForEach(Palette.all.filter { SearchText.matches(globalSearch, in: $0.name + " palette colors") }) { palette in
+                searchRow(palette.name, detail: "Wallpaper palette", symbol: "circle.lefthalf.filled") { store.preferences.wallpaper.colors = palette.colors; page = "Wallpapers"; globalSearch = "" }
+            }
+            ForEach([("Wallpapers", "wallpaper background animation battery low power reduce motion colors"), ("Widgets", "widgets arrange snap desktop"), ("Connections", "connections weather city codex claude usage"), ("Settings", "settings login dock menu bar privacy"), ("Updates", "update download release version improvements")], id: \.0) { entry in
+                if SearchText.matches(globalSearch, in: entry.1) {
+                    searchRow(entry.0, detail: "Open settings page", symbol: "arrow.right.circle") { page = entry.0; globalSearch = "" }
+                }
+            }
+            Text("Try “apps”, “folders”, “music”, “timer”, “AirPods”, or “updates”.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private func searchRow(_ title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: symbol).frame(width: 24).foregroundStyle(Color.accentColor)
+                VStack(alignment: .leading, spacing: 3) { Text(title).font(.system(size: 13, weight: .semibold)); Text(detail).font(.caption).foregroundStyle(.secondary) }
+                Spacer()
+                Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.secondary)
+            }.padding(14).background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 12))
+        }.buttonStyle(.plain)
     }
     private var wallpaperPage: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -162,9 +207,9 @@ struct StudioView: View {
                 Toggle("Snap to grid", isOn: $store.preferences.snap)
             }
             Text("Turn on Arrange, then drag a widget by its top handle. Click its sliders to edit. Widgets stay behind your apps.").font(.caption).foregroundStyle(.secondary)
-            TextField("Search all 27 widgets", text: $widgetSearch).textFieldStyle(.roundedBorder)
+            TextField("Search all 29 widgets", text: $widgetSearch).textFieldStyle(.roundedBorder)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130))], spacing: 10) {
-                ForEach(WidgetKind.allCases.filter { widgetSearch.isEmpty || $0.rawValue.localizedCaseInsensitiveContains(widgetSearch) }) { kind in
+                ForEach(WidgetKind.allCases.filter { $0.matches(widgetSearch) }) { kind in
                     Button { store.add(kind) } label: {
                         HStack {
                             Image(systemName: kind.symbol).frame(width: 20).foregroundStyle(Color.accentColor)
@@ -178,7 +223,7 @@ struct StudioView: View {
             if store.preferences.widgets.isEmpty {
                 ContentUnavailableView("Room for something useful", systemImage: "square.dashed", description: Text("Add a clock, a quiet reminder, or something entirely your own."))
             } else {
-                ForEach(store.preferences.widgets) { widget in
+                ForEach(store.preferences.widgets.filter { $0.kind.matches(widgetSearch) || SearchText.matches(widgetSearch, in: $0.title) }) { widget in
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
                             Label(widget.title.isEmpty ? widget.kind.rawValue : widget.title, systemImage: widget.kind.symbol).font(.headline)
@@ -315,7 +360,7 @@ struct WidgetEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Divider()
-            WidgetOptionsEditor(widget: $widget)
+            WidgetOptionsEditor(widget: $widget, store: store)
             HStack {
                 Picker("Surface", selection: $widget.surface) { ForEach(WidgetSurface.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
                 ColorPicker("Text", selection: color(\.foreground), supportsOpacity: false).fixedSize()

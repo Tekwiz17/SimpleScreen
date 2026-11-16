@@ -12,3 +12,8 @@ Release publishing depends on all checks passing.
 Manual checks: connect real AirPods/keyboard/mouse/trackpad; compare their current levels with macOS; disconnect and refresh. Test battery and Low Power Mode transitions, Reduce Motion, external displays and Spaces/Stage Manager. Verify real Codex/Claude account snapshots, city weather, and each widget's click interactions. Check old v1.0.0 preferences on an existing installation.
 
 Automated fixture/runner checks do not establish support for every physical Bluetooth device or every user's macOS configuration.
+## Version 1.2 checks
+
+CI adds 73 total model checks, eight mocked browser-media behavior checks executed by macOS JavaScript for Automation, and four checks against the packaged update (real extraction/signature/version, bad checksum, wrong version, helper syntax). All 29 widgets are included in the live launch.
+
+Manual checks still required: real Music/Spotify and browser Automation prompts, current-tab website compatibility, actual app/folder selection and launching, and replacing a running installed app via Updates. The update test validates preparation, not actual quit/replacement/relaunch on a user's Mac.

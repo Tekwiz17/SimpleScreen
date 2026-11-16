@@ -25,6 +25,8 @@ jobs:
           "$RUNNER_TEMP/native-motion"
       - name: Check Claude status-line helper
         run: python3 -m unittest discover -s Tests -p 'test_*.py' -v
+      - name: Check browser media script behavior
+        run: python3 Tests/check_media_script.py
       - name: Build Debug
         run: |
           xcodebuild -quiet -project SimpleScreen.xcodeproj -scheme SimpleScreen -configuration Debug -destination 'platform=macOS' -derivedDataPath "$RUNNER_TEMP/SimpleScreenBuild" build
@@ -59,6 +61,10 @@ jobs:
           ditto -c -k --keepParent "$app" "$RUNNER_TEMP/SimpleScreen-macOS.zip"
           cd "$RUNNER_TEMP"
           shasum -a 256 SimpleScreen-macOS.zip > SHA256SUMS.txt
+      - name: Verify actual release update preparation
+        run: |
+          swiftc -parse-as-library SimpleScreen/Models.swift SimpleScreen/Updater.swift Tests/UpdateChecks.swift -o "$RUNNER_TEMP/update-checks"
+          "$RUNNER_TEMP/update-checks" "$RUNNER_TEMP/SimpleScreen-macOS.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: SimpleScreen-macOS

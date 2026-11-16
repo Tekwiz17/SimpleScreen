@@ -1,7 +1,10 @@
 import SwiftUI
 import AppKit
 
-extension Notification.Name { static let openSimpleScreenSettings = Notification.Name("openSimpleScreenSettings") }
+extension Notification.Name {
+    static let openSimpleScreenSettings = Notification.Name("openSimpleScreenSettings")
+    static let openSimpleScreenUpdates = Notification.Name("openSimpleScreenUpdates")
+}
 struct GlassBackground: NSViewRepresentable {
     func makeNSView(context: Context) -> NSVisualEffectView {
         let view = NSVisualEffectView()
@@ -28,7 +31,7 @@ struct DesktopWidgetView: View {
                             Image(systemName: "line.3.horizontal")
                             Text(widget.kind.rawValue).font(.caption.weight(.medium))
                             Spacer()
-                            Button { store.selectedWidget = id; NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil) } label: { Image(systemName: "slider.horizontal.3") }
+                            Button { store.selectedWidget = id; store.requestedPage = "Widgets"; NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil) } label: { Image(systemName: "slider.horizontal.3") }
                                 .buttonStyle(.plain).help("Edit widget")
                         }
                         .overlay(alignment: .leading) { DragHandle(enabled: true).padding(.trailing, 28) }
@@ -138,7 +141,7 @@ struct DesktopWidgetView: View {
                 Text(w.text).font(w.fontName == "System" ? .system(size: min(w.fontSize, 26), weight: .medium, design: .serif) : .custom(w.fontName, size: w.fontSize))
                     .minimumScaleFactor(0.5)
             }.contentShape(Rectangle()).onTapGesture {
-                store.selectedWidget = id; NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil)
+                store.selectedWidget = id; store.requestedPage = "Widgets"; NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil)
             }
         case .usage: usage(w)
         case .html: HTMLWidget(html: w.html, networkAllowed: w.networkAllowed)

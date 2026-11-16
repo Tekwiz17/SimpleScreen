@@ -38,6 +38,7 @@ struct WeatherReading {
     }
 }
 @MainActor final class Services: ObservableObject {
+    let nowPlaying = NowPlayingService()
     @Published var devices: [DeviceBattery] = []
     @Published var deviceStatus = "Add Device Batteries to discover accessories"
     @Published var deviceUpdated: Date?
@@ -68,6 +69,7 @@ struct WeatherReading {
     }
     func configure(_ preferences: Preferences) {
         config = preferences
+        nowPlaying.configure(preferences)
         let key = "\(config.weatherEnabled):\(config.latitude):\(config.longitude):\(config.fahrenheit)"
         if key != weatherKey {
             weatherKey = key

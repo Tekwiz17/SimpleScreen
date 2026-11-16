@@ -16,6 +16,8 @@ struct ExtraWidgetView: View {
     var body: some View {
         Group {
             switch widget.kind {
+            case .launcher: LauncherWidgetView(store: store, widget: widget)
+            case .nowPlaying: NowPlayingWidgetView(store: store, media: services.nowPlaying, widget: widget)
             case .batteries: batteries
             case .worldClock: worldClock
             case .analog: analog

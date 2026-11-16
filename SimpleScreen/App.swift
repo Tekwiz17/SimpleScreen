@@ -10,6 +10,7 @@ import AppKit
                     Button("SimpleScreen Settings…") {
                         NotificationCenter.default.post(name: .openSimpleScreenSettings, object: nil)
                     }.keyboardShortcut(",", modifiers: .command)
+                    Button("Check for Updates…") { NotificationCenter.default.post(name: .openSimpleScreenUpdates, object: nil) }
                 }
             }
     }
@@ -23,6 +24,7 @@ import AppKit
         desktop = DesktopController(store: store)
         store.onChange = { [weak self] in self?.apply() }
         NotificationCenter.default.addObserver(self, selector: #selector(openSettings), name: .openSimpleScreenSettings, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(openUpdates), name: .openSimpleScreenUpdates, object: nil)
         apply()
         openSettings()
     }
@@ -38,6 +40,7 @@ import AppKit
             }
             let menu = NSMenu()
             add("Open SimpleScreen…", action: #selector(openSettings), to: menu)
+            add("Check for Updates…", action: #selector(openUpdates), to: menu)
             menu.addItem(.separator())
             add(store.preferences.enabled ? "Pause desktop" : "Resume desktop", action: #selector(toggleDesktop), to: menu)
             add(store.editing ? "Finish arranging widgets" : "Arrange widgets", action: #selector(toggleEditing), to: menu)
@@ -68,6 +71,7 @@ import AppKit
         edit.submenu = editMenu; main.addItem(edit)
         NSApp.mainMenu = main
     }
+    @objc func openUpdates() { openSettings(); store.requestedPage = "Updates" }
     @objc func openSettings() {
         if settingsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760), styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView], backing: .buffered, defer: false)

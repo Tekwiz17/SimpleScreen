@@ -6,6 +6,7 @@ import UniformTypeIdentifiers
 @MainActor final class Store: ObservableObject {
     @Published var preferences: Preferences
     @Published var editing = false
+    @Published var requestedPage: String?
     @Published var selectedWidget: UUID?
     @Published var error: String?
     @Published var sleeping = false
@@ -87,6 +88,8 @@ import UniformTypeIdentifiers
         if [.batteries, .checklist, .links, .calculator, .weatherDetails].contains(kind) { widget.width = 300; widget.height = 300 }
         if [.analog, .breathing, .color, .habit].contains(kind) { widget.width = 250; widget.height = 250 }
         if kind == .quote { widget.width = 320; widget.height = 210 }
+        if kind == .launcher { widget.width = 320; widget.height = 240 }
+        if kind == .nowPlaying { widget.width = 340; widget.height = 250 }
         preferences.widgets.append(widget)
         selectedWidget = widget.id
         editing = true

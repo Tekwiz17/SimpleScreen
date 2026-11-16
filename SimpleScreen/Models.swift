@@ -8,7 +8,7 @@ enum WallpaperStyle: String, Codable, CaseIterable, Identifiable {
 }
 enum WidgetKind: String, Codable, CaseIterable, Identifiable {
     case clock = "Clock", weather = "Weather", battery = "Battery", calendar = "Calendar", focus = "Focus", note = "Note", usage = "AI Usage", html = "HTML"
-    case batteries = "Device Batteries", worldClock = "World Clock", analog = "Analog Clock", countdown = "Countdown", stopwatch = "Stopwatch", checklist = "Checklist", habit = "Habit", water = "Water", breathing = "Breathe", quote = "Daily Thought", dayProgress = "Day Progress", storage = "Storage", memory = "Memory", uptime = "Uptime", links = "Quick Links", calculator = "Calculator", dice = "Dice", color = "Color Studio", weatherDetails = "Weather Details"
+    case batteries = "Device Batteries", worldClock = "World Clock", analog = "Analog Clock", countdown = "Countdown", stopwatch = "Stopwatch", checklist = "Checklist", habit = "Habit", water = "Water", breathing = "Breathe", quote = "Daily Thought", dayProgress = "Day Progress", storage = "Storage", memory = "Memory", uptime = "Uptime", links = "Quick Links", calculator = "Calculator", dice = "Dice", color = "Color Studio", weatherDetails = "Weather Details", launcher = "App & Folder Launcher", nowPlaying = "Now Playing"
     var id: String { rawValue }
     var symbol: String {
         switch self {
@@ -39,6 +39,8 @@ enum WidgetKind: String, Codable, CaseIterable, Identifiable {
         case .dice: return "dice"
         case .color: return "eyedropper.halffull"
         case .weatherDetails: return "thermometer.sun"
+        case .launcher: return "square.grid.2x2.fill"
+        case .nowPlaying: return "play.rectangle.fill"
         }
     }
 }
@@ -117,6 +119,7 @@ struct Preferences: Codable {
     var onboardingComplete = false
     var pauseInLowPower: Bool?
     var respectReduceMotion: Bool?
+    var connectedPlayers: [String]?
 }
 enum Layout {
     static func position(_ value: Double, extent: Double, size: Double, snap: Bool, grid: Double) -> Double {
@@ -202,6 +205,11 @@ struct WidgetOptions: Codable, Equatable {
     var colorHex = "74B9B2"
     var diceCount = 2
     var diceSides = 6
+    var launchItems: [LaunchItem]?
+    var launcherColumns: Int?
+    var launcherIconSize: Double?
+    var launcherLabels: Bool?
+    var mediaSource: String?
 }
 enum MotionPolicy {
     static func pauseReason(enabled: Bool, sleeping: Bool, lowPower: Bool, reduceMotion: Bool, onBattery: Bool, pauseOnBattery: Bool, pauseInLowPower: Bool, respectReduceMotion: Bool) -> String? {
@@ -312,4 +320,131 @@ struct CalculatorState {
         display = display == "0" && key != "." ? key : display + key
     }
     private mutating func set(_ value: Double) { display = value.isFinite ? String(format: "%.10g", value) : "Error" }
+}
+
+struct LaunchItem: Codable, Equatable, Identifiable {
+    var id = UUID()
+    var name: String
+    var path: String
+    var isApplication: Bool
+    var bookmark: Data?
+}
+enum SearchText {
+    static func matches(_ query: String, in text: String) -> Bool {
+        let normalized = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+        return query.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .split(whereSeparator: { $0.isWhitespace }).allSatisfy { normalized.contains($0) }
+    }
+}
+extension WidgetKind {
+    var searchTerms: String {
+        let extra: String
+        switch self {
+        case .launcher: extra = "apps applications folders directories finder shortcuts buttons dock launch open"
+        case .nowPlaying: extra = "music spotify browser safari chrome edge brave audio media playback song album artist player pause next"
+        case .batteries, .battery: extra = "power charge airpods headphones keyboard mouse devices"
+        case .clock, .worldClock, .analog: extra = "time timezone watch cities"
+        case .focus, .countdown, .stopwatch: extra = "time timer pomodoro productivity"
+        case .checklist, .habit: extra = "tasks todo to-do goals productivity"
+        case .weather, .weatherDetails: extra = "forecast temperature rain wind humidity city"
+        case .usage: extra = "codex claude tokens quota limits ai"
+        case .html: extra = "custom code javascript css web"
+        case .links: extra = "website bookmarks urls shortcuts"
+        case .storage, .memory, .uptime: extra = "system mac disk ram computer monitor"
+        default: extra = ""
+        }
+        return rawValue + " " + extra
+    }
+    func matches(_ query: String) -> Bool { SearchText.matches(query, in: searchTerms) }
+}
+enum MediaSource: String, CaseIterable, Codable {
+    case music = "Music", spotify = "Spotify", safari = "Safari", chrome = "Chrome", edge = "Edge", brave = "Brave"
+    var browser: Bool { ![Self.music, .spotify].contains(self) }
+    var bundleID: String {
+        switch self {
+        case .music: return "com.apple.Music"
+        case .spotify: return "com.spotify.client"
+        case .safari: return "com.apple.Safari"
+        case .chrome: return "com.google.Chrome"
+        case .edge: return "com.microsoft.edgemac"
+        case .brave: return "com.brave.Browser"
+        }
+    }
+}
+enum MediaAction: String { case read, toggle, next, previous }
+struct NowPlayingSnapshot: Codable, Equatable {
+    var title: String
+    var artist: String
+    var album: String
+    var state: String
+    var position: Double
+    var duration: Double
+    var artwork: String?
+    var error: String?
+    var playing: Bool { state == "playing" }
+    var validArtworkURL: URL? {
+        guard let artwork, let url = URL(string: artwork), url.scheme == "https", url.host != nil else { return nil }
+        return url
+    }
+    static func decode(_ data: Data) -> NowPlayingSnapshot? {
+        guard var value = try? JSONDecoder().decode(Self.self, from: data),
+              value.position.isFinite, value.duration.isFinite else { return nil }
+        value.duration = max(0, value.duration)
+        value.position = max(0, min(value.position, value.duration))
+        return value
+    }
+}
+
+struct AppVersion: Equatable, Comparable {
+    let parts: [Int]
+    init?(_ string: String) {
+        let value = string.hasPrefix("v") ? String(string.dropFirst()) : string
+        let segments = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard (2...3).contains(segments.count) else { return nil }
+        let numbers = segments.compactMap { segment -> Int? in
+            guard !segment.isEmpty, segment.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
+            return Int(segment)
+        }
+        guard numbers.count == segments.count else { return nil }
+        parts = numbers + Array(repeating: 0, count: 3 - numbers.count)
+    }
+    static func < (lhs: Self, rhs: Self) -> Bool { lhs.parts.lexicographicallyPrecedes(rhs.parts) }
+}
+struct AppRelease: Decodable {
+    struct Asset: Decodable {
+        let name: String
+        let browser_download_url: String
+        let size: Int
+    }
+    let tag_name: String
+    let body: String?
+    let draft: Bool
+    let prerelease: Bool
+    let assets: [Asset]
+    var version: AppVersion? { AppVersion(tag_name) }
+    func assetURL(_ name: String) -> URL? {
+        guard version != nil, !draft, !prerelease,
+              let asset = assets.first(where: { $0.name == name && $0.size > 0 }),
+              let url = URL(string: asset.browser_download_url), url.scheme == "https", url.host == "github.com",
+              url.path == "/Tekwiz17/SimpleScreen/releases/download/\(tag_name)/\(name)" else { return nil }
+        return url
+    }
+}
+enum UpdateValidation {
+    static func checksum(_ text: String, filename: String) -> String? {
+        for line in text.split(separator: "\n") {
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count == 2, fields[1].trimmingCharacters(in: CharacterSet(charactersIn: "*")) == filename else { continue }
+            let hash = fields[0].lowercased()
+            if hash.count == 64 && hash.allSatisfy({ "0123456789abcdef".contains($0) }) { return hash }
+        }
+        return nil
+    }
+    static func safeArchivePaths(_ listing: String) -> Bool {
+        let paths = listing.split(separator: "\n")
+        return !paths.isEmpty && paths.allSatisfy { path in
+            (path == "SimpleScreen.app" || path.hasPrefix("SimpleScreen.app/")) &&
+            !path.split(separator: "/").contains("..") && !path.contains("\\") && !path.contains("\0")
+        }
+    }
 }
