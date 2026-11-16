@@ -96,7 +96,7 @@ struct LaunchCandidate: Identifiable {
         next.searchScopes = filter == "Apps" ? [NSMetadataQueryLocalComputerScope] : [NSHomeDirectory(), "/Applications", "/System/Applications"]
         next.notificationBatchingInterval = 0.2
         query = next
-        for event in [NSMetadataQuery.didFinishGatheringNotification, NSMetadataQuery.didUpdateNotification] {
+        for event in [Notification.Name.NSMetadataQueryDidFinishGathering, Notification.Name.NSMetadataQueryDidUpdate] {
             observers.append(NotificationCenter.default.addObserver(forName: event, object: next, queue: .main) { [weak self] _ in
                 Task { @MainActor in self?.collect() }
             })
