@@ -1,28 +1,14 @@
 # Validation
 
-Automated checks live in .github/workflows/macos.yml. The release job depends on the entire build job passing.
+Release publishing depends on all checks passing.
 
-## Automated
+- 47 model checks: persistence/legacy optional settings, layout, usage, motion policy including battery/Low Power overrides, calculator, daily counters, safe URLs, and connected-device battery fixtures.
+- 64 wallpaper/palette combinations: render two different times and require different pixels for every procedural style, including Gradient.
+- Eight native desktop-window animation tests: actual redraw timers advance, pixels change, pause freezes pixels/phase, and resume advances again.
+- Five Claude status-line helper tests.
+- Xcode Debug and universal arm64/x86_64 Release builds, signature/icon/plist checks.
+- First-launch settings and wallpaper level, followed by a saved-settings launch of all 27 widget types.
 
-- 21 model checks: persistence, grid rounding/clamping, invalid geometry recovery, opt-in defaults, Codex/Claude parsing, missing/invalid windows, weekly-only plans, timestamps, stale readings.
-- 40 renders: five procedural styles × eight palettes, checking image dimensions and nonblank pixel diversity.
-- Five Python tests: usage-only filtering, missing values, invalid percentages, independently optional windows.
-- Xcode Debug and universal arm64/x86_64 Release compilation.
-- Ad-hoc signature, executable architectures, Info.plist, and generated icon checks.
-- Actual app launch with a visible settings window and a wallpaper window at the intended desktop layer; a second launch loads all eight saved widget types and verifies their window levels.
-- Release archive and checksum validation; downloaded release compared byte-for-byte.
+Manual checks: connect real AirPods/keyboard/mouse/trackpad; compare their current levels with macOS; disconnect and refresh. Test battery and Low Power Mode transitions, Reduce Motion, external displays and Spaces/Stage Manager. Verify real Codex/Claude account snapshots, city weather, and each widget's click interactions. Check old v1.0.0 preferences on an existing installation.
 
-## Manual on a physical Mac
-
-1. Fresh install: onboarding, import PNG/JPEG and animated GIF; fill/fit; change all procedural designs and palettes.
-2. Add each widget; change appearance, font, size; arrange/snap; quit/relaunch; verify positions.
-3. Keep desktop icons clickable outside widgets. Place ordinary app windows above widgets. Test Mission Control, Spaces, Stage Manager, and full-screen apps.
-4. Attach/disconnect/reconnect an external display with nonzero/negative coordinates; confirm widget fallback and restoration.
-5. Pause/resume; sleep/wake; Low Power Mode; battery transition; Reduce Motion.
-6. Click weather for rain/snow/sun matching the current condition; disable interaction and verify click-through. Test offline weather and stale labels.
-7. Configure real Codex and Claude Code accounts. Compare remaining/reset fields to their CLIs, including absent windows and stale snapshots.
-8. Import the HTML example; test network-disabled versus enabled and verify links/pop-ups/file URLs cannot escape.
-9. Test Dock/menu bar/both/neither; reopen from Finder when hidden. Register/unregister login item from /Applications.
-10. On a separate Mac, download the release to exercise Gatekeeper and first-launch handling.
-
-No CI result should be described as validating live account integrations or every physical macOS configuration.
+Automated fixture/runner checks do not establish support for every physical Bluetooth device or every user's macOS configuration.

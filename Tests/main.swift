@@ -40,4 +40,48 @@ check("Out-of-range percent rejected", UsageParser.parse(Data(#"{"rate_limits":{
 check("Old snapshot labeled stale", UsageSnapshot(captured: Date().addingTimeInterval(-1000)).stale)
 check("New snapshot not stale", !UsageSnapshot(captured: Date()).stale)
 check("Boolean allowance rejected", UsageParser.parse(Data(#"{"rate_limits":{"primary":{"used_percent":true}}}"#.utf8), provider: "Codex", captured: .now) == nil)
+
+let legacyObject = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+let legacyData = try JSONSerialization.data(withJSONObject: legacyObject)
+let legacy = try JSONDecoder().decode(Preferences.self, from: legacyData)
+check("Version 1 preferences load without new motion keys", legacy.pauseInLowPower == nil && legacy.respectReduceMotion == nil)
+check("Old widgets gain default optional options", legacy.widgets[0].settings.goal == 8)
+var options = WidgetOptions()
+options.startedAt = Date(timeIntervalSince1970: 100)
+options.elapsed = 20
+check("Stopwatch resumes stored elapsed time", WidgetMath.stopwatch(options, at: Date(timeIntervalSince1970: 110)) == 30)
+options.count = 7; options.dayKey = "yesterday"
+check("Daily water count resets by date", WidgetMath.dailyCount(options, at: .now) == 0)
+check("Web shortcut blocks scripts", WidgetMath.safeURL("javascript:alert(1)") == nil)
+check("Web shortcut accepts HTTPS", WidgetMath.safeURL("https://example.com") != nil)
+check("27 widget choices", WidgetKind.allCases.count == 27)
+func reason(battery: Bool = false, low: Bool = false, reduce: Bool = false, pauseBattery: Bool = false, pauseLow: Bool = true, respect: Bool = true) -> String? {
+    MotionPolicy.pauseReason(enabled: true, sleeping: false, lowPower: low, reduceMotion: reduce, onBattery: battery, pauseOnBattery: pauseBattery, pauseInLowPower: pauseLow, respectReduceMotion: respect)
+}
+check("Battery animation allowed", reason(battery: true) == nil)
+check("Battery pause explained", reason(battery: true, pauseBattery: true) == "Battery animation is disabled")
+check("Low power override works", reason(battery: true, low: true, pauseLow: false) == nil)
+check("Low power pause explained", reason(low: true) == "Low Power Mode is enabled")
+check("Reduce Motion override works", reason(reduce: true, respect: false) == nil)
+check("Reduce Motion pause explained", reason(reduce: true) == "Reduce Motion is enabled")
+check("Battery zero percent valid", BatteryParser.percentage("0%") == 0)
+check("Battery percent string parsed", BatteryParser.percentage("87%") == 87)
+check("Missing battery stays missing", BatteryParser.percentage(nil) == nil)
+check("Out of range battery rejected", BatteryParser.percentage(101) == nil)
+check("Boolean battery rejected", BatteryParser.percentage(true) == nil)
+let bluetooth = Data(#"{"SPBluetoothDataType":[{"device_connected":[{"AirPods":{"device_address":"AA","device_batteryLevelLeft":"62%","device_batteryLevelRight":"70%","device_batteryLevelCase":"90%"}},{"Keyboard":{"device_address":"BB","device_batteryLevelMain":"41%"}},{"Speaker":{"device_address":"CC"}}],"device_not_connected":[{"Old Mouse":{"device_batteryLevelMain":"99%"}}]}]}"#.utf8)
+let devices = BatteryParser.bluetooth(bluetooth)!
+check("Separate earbud and case readings", devices.filter { $0.name == "AirPods" }.count == 3)
+check("Keyboard battery included", devices.first { $0.name == "Keyboard" }?.percent == 41)
+check("Unknown battery is unavailable", devices.first { $0.name == "Speaker" }?.percent == nil)
+check("Disconnected devices excluded", !devices.contains { $0.name == "Old Mouse" })
+check("Malformed Bluetooth snapshot rejected", BatteryParser.bluetooth(Data("oops".utf8)) == nil)
+var calc = CalculatorState()
+["2", "+", "3", "="].forEach { calc.press($0) }
+check("Calculator addition", calc.display == "5")
+["C", "6", "÷", "0", "="].forEach { calc.press($0) }
+check("Calculator divide by zero", calc.display == "Error")
+["C", "1", ".", "5", "×", "2", "="].forEach { calc.press($0) }
+check("Calculator decimal multiplication", calc.display == "3")
 print("\(count) model checks passed.")
+

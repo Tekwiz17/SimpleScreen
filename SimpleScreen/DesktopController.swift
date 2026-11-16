@@ -91,9 +91,11 @@ final class DesktopPanel: NSPanel {
               let item = widgets.first(where: { $0.value === window }),
               let screen = window.screen else { return }
         let area = screen.visibleFrame
+        let snap = store.preferences.snap
+        let grid = store.preferences.grid
         store.update(item.key) {
             $0.screenID = screenID(screen)
-            $0.x = Layout.position(window.frame.minX - area.minX, extent: area.width, size: window.frame.width, snap: store.preferences.snap, grid: store.preferences.grid)
+            $0.x = Layout.position(window.frame.minX - area.minX, extent: area.width, size: window.frame.width, snap: snap, grid: grid)
             $0.y = Layout.position(area.maxY - window.frame.maxY, extent: area.height, size: window.frame.height, snap: store.preferences.snap, grid: store.preferences.grid)
         }
     }

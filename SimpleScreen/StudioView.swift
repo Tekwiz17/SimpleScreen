@@ -7,6 +7,7 @@ struct StudioView: View {
     @ObservedObject var store: Store
     @ObservedObject var services: Services
     @State private var page = "Wallpapers"
+    @State private var widgetSearch = ""
     @State private var locationQuery = ""
     @State private var locations: [WeatherLocation] = []
     @State private var findingLocation = false
@@ -69,7 +70,7 @@ struct StudioView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Made to feel like yours.", systemImage: "sparkle").font(.system(size: 11)).foregroundStyle(.secondary)
                 Link("Open source on GitHub ↗", destination: URL(string: "https://github.com/Tekwiz17/SimpleScreen")!).font(.system(size: 11))
-                Text("SimpleScreen 1.0.0").font(.system(size: 10)).foregroundStyle(.tertiary)
+                Text("SimpleScreen 1.1.0").font(.system(size: 10)).foregroundStyle(.tertiary)
             }
         }.padding(18).frame(width: 204).background(.ultraThinMaterial)
     }
@@ -144,9 +145,12 @@ struct StudioView: View {
             }
             card {
                 Toggle("Bring it to life", isOn: $store.preferences.wallpaper.animated)
+                Toggle("Animate on battery", isOn: Binding(get: { !store.preferences.pauseOnBattery }, set: { store.preferences.pauseOnBattery = !$0 }))
+                Toggle("Pause in Low Power Mode", isOn: Binding(get: { store.preferences.pauseInLowPower ?? true }, set: { store.preferences.pauseInLowPower = $0 }))
+                Toggle("Respect Reduce Motion", isOn: Binding(get: { store.preferences.respectReduceMotion ?? true }, set: { store.preferences.respectReduceMotion = $0 }))
                 HStack { Text("Gentle").font(.caption).foregroundStyle(.secondary); Slider(value: $store.preferences.wallpaper.speed, in: 0.05...1); Text("Lively").font(.caption).foregroundStyle(.secondary) }
                     .disabled(!store.preferences.wallpaper.animated || store.preferences.wallpaper.style == .image)
-                Text("Animations respect Reduce Motion and pause during sleep or Low Power Mode.").font(.caption).foregroundStyle(.secondary)
+                Text(store.motionStatus).font(.caption).foregroundStyle(.secondary)
             }
         }
     }
@@ -158,8 +162,9 @@ struct StudioView: View {
                 Toggle("Snap to grid", isOn: $store.preferences.snap)
             }
             Text("Turn on Arrange, then drag a widget by its top handle. Click its sliders to edit. Widgets stay behind your apps.").font(.caption).foregroundStyle(.secondary)
+            TextField("Search all 27 widgets", text: $widgetSearch).textFieldStyle(.roundedBorder)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 130))], spacing: 10) {
-                ForEach(WidgetKind.allCases) { kind in
+                ForEach(WidgetKind.allCases.filter { widgetSearch.isEmpty || $0.rawValue.localizedCaseInsensitiveContains(widgetSearch) }) { kind in
                     Button { store.add(kind) } label: {
                         HStack {
                             Image(systemName: kind.symbol).frame(width: 20).foregroundStyle(Color.accentColor)
@@ -255,7 +260,10 @@ struct StudioView: View {
                     do { if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() } }
                     catch { store.error = error.localizedDescription; login = SMAppService.mainApp.status == .enabled }
                 }
-                Toggle("Pause animation on battery", isOn: $store.preferences.pauseOnBattery)
+                Toggle("Animate on battery", isOn: Binding(get: { !store.preferences.pauseOnBattery }, set: { store.preferences.pauseOnBattery = !$0 }))
+                Toggle("Pause in Low Power Mode", isOn: Binding(get: { store.preferences.pauseInLowPower ?? true }, set: { store.preferences.pauseInLowPower = $0 }))
+                Toggle("Respect Reduce Motion", isOn: Binding(get: { store.preferences.respectReduceMotion ?? true }, set: { store.preferences.respectReduceMotion = $0 }))
+                Text(store.motionStatus).font(.caption).foregroundStyle(.secondary)
                 HStack { Text("Snap spacing"); Slider(value: $store.preferences.grid, in: 8...48, step: 4); Text("\(Int(store.preferences.grid)) pt").font(.caption).frame(width: 40) }
             }
             card {
@@ -265,7 +273,7 @@ struct StudioView: View {
             }
             card {
                 Label("A smaller footprint", systemImage: "leaf").font(.headline)
-                Text("Procedural animation runs at 24 fps. Images render without a repeating animation timer. GIFs use their own frame timings. Weather refreshes every 15 minutes; battery and connected usage refresh every minute.").font(.caption).foregroundStyle(.secondary)
+                Text("Procedural animation uses a native 30 fps redraw timer. Images render without a repeating animation timer. GIFs use their own frame timings. Weather refreshes every 15 minutes; battery and connected usage refresh every minute.").font(.caption).foregroundStyle(.secondary)
                 Text("Glass uses Liquid Glass on macOS 26 builds and native backdrop blur on earlier versions. Desktop effects work without Accessibility or Screen Recording access.").font(.caption).foregroundStyle(.secondary)
             }
             HStack {
@@ -307,6 +315,7 @@ struct WidgetEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Divider()
+            WidgetOptionsEditor(widget: $widget)
             HStack {
                 Picker("Surface", selection: $widget.surface) { ForEach(WidgetSurface.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.pickerStyle(.segmented)
                 ColorPicker("Text", selection: color(\.foreground), supportsOpacity: false).fixedSize()

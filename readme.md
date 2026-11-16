@@ -6,13 +6,13 @@
 
 ## Make your desktop yours
 
-- **Wallpaper studio:** Aurora, Gradient, Dunes, Orbit, and Contour; eight original palettes; two to five custom colors; adjustable direction and motion.
+- **Wallpaper studio:** Aurora, Gradient, Dunes, Orbit, Contour, Ripple, Starlight, and Ribbons; eight original palettes; two to five custom colors; adjustable direction and motion.
 - **Your own images:** import still images or animated GIFs. Fit or fill. Originals are copied into Application Support.
-- **Eight widgets:** Clock, Weather, Battery, Calendar, Focus timer, Note, Codex/Claude Code usage, and custom HTML.
+- **27 widgets:** Clock, Weather, Battery, Calendar, Focus, Note, AI Usage, HTML, Device Batteries, World Clock, Analog Clock, Countdown, Stopwatch, Checklist, Habit, Water, Breathe, Daily Thought, Day Progress, Storage, Memory, Uptime, Quick Links, Calculator, Dice, Color Studio, and Weather Details.
 - **Personal styling:** glass, solid-color, or transparent surfaces; text/tint colors, opacity, fonts, dimensions, and display assignment.
 - **Arrange mode:** drag widgets by their top handles, with optional grid snapping. Layout survives relaunch.
 - **Weather you can touch:** click for layered rain and surface ripples, drifting snow, or sun rays. Effects last eight seconds and can be disabled.
-- **Quiet by design:** pause motion on battery, Low Power Mode, sleep, or Reduce Motion. Dock, menu bar, both, or neither. Optional launch at login.
+- **Visible, controllable motion:** native 30 fps redraws, with separate battery/Low Power/Reduce Motion controls and an explicit pause reason. Dock, menu bar, both, or neither. Optional launch at login.
 
 SimpleScreen uses its own desktop-level windows; it does not replace your saved macOS wallpaper or require Accessibility/Screen Recording access. Desktop icons and ordinary app windows remain separate.
 
@@ -41,6 +41,7 @@ The app is at `build/Build/Products/Release/SimpleScreen.app`.
 
 ## Connections and custom widgets
 
+- [Device batteries](docs/DEVICE-BATTERIES.md): connected accessories and what macOS can report.
 - [AI usage setup](docs/AI-USAGE.md): local Codex snapshots and the opt-in Claude Code status-line helper.
 - [HTML widget guide](docs/HTML-WIDGETS.md): self-contained HTML, CSS, and click interactions. HTTPS access is opt-in.
 - Weather uses [Open-Meteo](https://open-meteo.com/) current conditions, attributed under CC BY 4.0. Search for your city or enter coordinates; automatic location is not requested.
@@ -55,11 +56,11 @@ AI values are **last recorded account snapshots**, not a promise of live remaini
 
 Wallpaper settings currently apply to every display; widgets can be assigned separately. When a display disconnects, its widgets appear on the main display and return when it reconnects. Full-screen apps, Mission Control, and Stage Manager behavior is governed by macOS window management. Glass uses native Liquid Glass on macOS 26 when built with Xcode 26+, with native backdrop blur and translucent highlights on earlier macOS versions.
 
-Weather effects are procedural visual effects, not photographic video. The Calendar widget shows the current week and opens Calendar; it does not read private events. Battery reports the Mac power source, not paired Bluetooth accessory batteries. The Focus timer stores its end date, so it survives app relaunch.
+Weather effects are procedural visual effects, not photographic video. The Calendar widget shows the current week and opens Calendar; it does not read private events. Battery reports the Mac power source; Device Batteries adds connected Bluetooth accessories and separate AirPods components when macOS exposes them. iPhone/iPad/Apple Watch battery access is not universal. The Focus timer stores its end date, so it survives app relaunch.
 
 ## CI and releases
 
-Every push and PR runs model/usage checks, all 40 wallpaper-palette render combinations, Python bridge tests, Debug and universal Release builds, signature/architecture/icon validation, and a live first-launch window check on macOS. A successful push to main publishes a versioned ZIP plus SHA-256 checksum. Increment the version in `SimpleScreen/Info.plist` and add matching notes under `releases/` for subsequent releases.
+Every push and PR runs model/usage checks, all 64 wallpaper-palette render-and-motion combinations plus native desktop redraw/pause/resume checks, Python bridge tests, Debug and universal Release builds, signature/architecture/icon validation, and live first-launch/all-27-widget window checks on macOS. A successful push to main publishes a versioned ZIP plus SHA-256 checksum. Increment the version in `SimpleScreen/Info.plist` and add matching notes under `releases/` for subsequent releases.
 
 CI cannot establish behavior on every physical display, a real user's weather/network connection, real subscribed AI accounts, or all macOS window-management configurations. See [manual checks](docs/TESTING.md).
 

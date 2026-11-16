@@ -15,6 +15,6 @@ import AppKit
         let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("SimpleScreen")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         try JSONEncoder().encode(preferences).write(to: folder.appendingPathComponent("Preferences.json"), options: .atomic)
-        print("Seeded all eight widget kinds for live launch.")
+        print("Seeded all 27 widget kinds for live launch.")
     }
 }

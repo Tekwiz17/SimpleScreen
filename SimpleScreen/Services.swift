@@ -6,6 +6,9 @@ struct WeatherReading {
     var temperature: Double
     var code: Int
     var date: Date
+    var humidity: Double?
+    var wind: Double?
+    var feelsLike: Double?
     var symbol: String {
         switch code {
         case 0, 1: return "sun.max.fill"
@@ -35,7 +38,15 @@ struct WeatherReading {
     }
 }
 @MainActor final class Services: ObservableObject {
+    @Published var devices: [DeviceBattery] = []
+    @Published var deviceStatus = "Add Device Batteries to discover accessories"
+    @Published var deviceUpdated: Date?
+    @Published var machine = MachineSnapshot()
     @Published var battery: Int?
+    private var bluetoothDevices: [DeviceBattery] = []
+    private var deviceRefreshing = false
+    private var lastDeviceAttempt = Date.distantPast
+    private var refreshing = false
     @Published var onBattery = false
     @Published var weather: WeatherReading?
     @Published var weatherStatus = "Enable weather in Settings"
@@ -66,9 +77,17 @@ struct WeatherReading {
             weatherTask = Task { [weak self] in await self?.refreshWeather() }
         }
         if !config.codexEnabled { codex = UsageSnapshot() }
+        if config.widgets.contains(where: { $0.kind == .batteries }) { Task { await refreshDevices() } }
     }
     func refresh() async {
-        readBattery()
+        guard !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
+        machine = MachineReader.read()
+        battery = machine.macPercent
+        onBattery = machine.onBattery
+        devices = machine.batteries + bluetoothDevices
+        await refreshDevices()
         await refreshWeather()
         let enabled = config.codexEnabled
         let path = config.claudePath
@@ -78,18 +97,23 @@ struct WeatherReading {
         if config.codexEnabled == enabled { codex = result.0 }
         if config.claudePath == path { claude = result.1 }
     }
-    private func readBattery() {
-        guard let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue(),
-              let list = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return }
-        battery = nil; onBattery = false
-        for source in list {
-            guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
-                  let current = description[kIOPSCurrentCapacityKey] as? Int,
-                  let maximum = description[kIOPSMaxCapacityKey] as? Int, maximum > 0 else { continue }
-            battery = Int(Double(current) / Double(maximum) * 100)
-            onBattery = description[kIOPSPowerSourceStateKey] as? String == kIOPSBatteryPowerValue
-            return
+    func refreshDevices(force: Bool = false) async {
+        guard config.widgets.contains(where: { $0.kind == .batteries }),
+              !deviceRefreshing, force || Date().timeIntervalSince(lastDeviceAttempt) > 120 else { return }
+        deviceRefreshing = true
+        lastDeviceAttempt = Date()
+        deviceStatus = "Checking connected accessories…"
+        let result = await Task.detached(priority: .utility) { MachineReader.bluetooth() }.value
+        deviceRefreshing = false
+        if let result {
+            bluetoothDevices = result
+            deviceUpdated = Date()
+            deviceStatus = result.isEmpty ? "No connected Bluetooth accessories reported" : "Connected accessories · macOS readings"
+        } else {
+            bluetoothDevices = [] // Never present old/disconnected accessory readings as current.
+            deviceStatus = "Accessory readings unavailable · try Refresh"
         }
+        devices = machine.batteries + bluetoothDevices
     }
     private func refreshWeather() async {
         guard config.weatherEnabled else { weather = nil; weatherStatus = "Enable weather in Settings"; return }
@@ -100,7 +124,7 @@ struct WeatherReading {
         var components = URLComponents(string: "https://api.open-meteo.com/v1/forecast")!
         components.queryItems = [
             .init(name: "latitude", value: String(latitude)), .init(name: "longitude", value: String(longitude)),
-            .init(name: "current", value: "temperature_2m,weather_code"),
+            .init(name: "current", value: "temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m,apparent_temperature"),
             .init(name: "temperature_unit", value: config.fahrenheit ? "fahrenheit" : "celsius")
         ]
         weatherStatus = "Updating…"
@@ -110,12 +134,12 @@ struct WeatherReading {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw URLError(.badServerResponse) }
             struct Response: Decodable {
-                struct Current: Decodable { let temperature_2m: Double; let weather_code: Int }
+                struct Current: Decodable { let temperature_2m: Double; let weather_code: Int; let relative_humidity_2m: Double?; let wind_speed_10m: Double?; let apparent_temperature: Double? }
                 let current: Current
             }
             let value = try JSONDecoder().decode(Response.self, from: data)
             guard !Task.isCancelled, key == weatherKey else { return }
-            weather = .init(temperature: value.current.temperature_2m, code: value.current.weather_code, date: Date())
+            weather = .init(temperature: value.current.temperature_2m, code: value.current.weather_code, date: Date(), humidity: value.current.relative_humidity_2m, wind: value.current.wind_speed_10m, feelsLike: value.current.apparent_temperature)
             weatherStatus = "Open-Meteo"
             lastWeather = Date()
         } catch {
@@ -148,7 +172,8 @@ enum LocalUsage {
         }
         var latest: UsageSnapshot?
         for (url, date) in files.sorted(by: { $0.1 > $1.1 }).prefix(12) {
-            guard let data = tail(url), let text = String(data: data, encoding: .utf8) else { continue }
+            guard let data = tail(url) else { continue }
+            let text = String(decoding: data, as: UTF8.self)
             for line in text.split(separator: "\n").reversed() {
                 guard line.contains("\"rate_limits\""),
                       let snapshot = UsageParser.parse(Data(line.utf8), provider: "Codex", captured: date) else { continue }

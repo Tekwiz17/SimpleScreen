@@ -6,9 +6,9 @@ let mine = windows.filter { $0[kCGWindowOwnerPID as String] as? Int == pid }
 if widgetsMode {
     let level = Int(CGWindowLevelForKey(.desktopIconWindow) + 1)
     let widgets = mine.filter { $0[kCGWindowLayer as String] as? Int == level }
-    guard widgets.count == 8 else { fatalError("Expected 8 desktop widgets, found \(widgets.count)") }
+    guard widgets.count == 27 else { fatalError("Expected 27 desktop widgets, found \(widgets.count)") }
     guard level < 0 else { fatalError("Widgets must stay behind normal application windows") }
-    print("All eight saved widget types launched at the correct desktop level.")
+    print("All 27 saved widget types launched at the correct desktop level.")
 } else {
     guard mine.contains(where: {
         guard $0[kCGWindowLayer as String] as? Int == 0,

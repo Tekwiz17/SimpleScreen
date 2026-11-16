@@ -53,8 +53,21 @@ import UniformTypeIdentifiers
             Task { @MainActor in self?.sleeping = false; self?.onChange?() }
         }
     }
-    var animate: Bool {
-        preferences.enabled && !sleeping && !lowPower && !reduceMotion && !(preferences.pauseOnBattery && services.onBattery)
+    var motionPauseReason: String? {
+        MotionPolicy.pauseReason(enabled: preferences.enabled, sleeping: sleeping, lowPower: lowPower, reduceMotion: reduceMotion, onBattery: services.onBattery, pauseOnBattery: preferences.pauseOnBattery, pauseInLowPower: preferences.pauseInLowPower ?? true, respectReduceMotion: preferences.respectReduceMotion ?? true)
+    }
+    var animate: Bool { motionPauseReason == nil }
+    var motionStatus: String {
+        if !preferences.wallpaper.animated { return "Motion is turned off" }
+        if let reason = motionPauseReason { return "Paused · " + reason }
+        return preferences.wallpaper.style == .image ? "GIF playback enabled · still images do not move" : "Running · 30 fps"
+    }
+    func updateOptions(_ id: UUID, _ change: (inout WidgetOptions) -> Void) {
+        update(id) { widget in
+            var options = widget.settings
+            change(&options)
+            widget.options = options
+        }
     }
     func save() {
         do {
@@ -71,6 +84,9 @@ import UniformTypeIdentifiers
         widget.y += Double(preferences.widgets.count % 5) * 30
         if kind == .usage { widget.height = 220; widget.width = 280 }
         if kind == .html { widget.width = 300; widget.height = 200 }
+        if [.batteries, .checklist, .links, .calculator, .weatherDetails].contains(kind) { widget.width = 300; widget.height = 300 }
+        if [.analog, .breathing, .color, .habit].contains(kind) { widget.width = 250; widget.height = 250 }
+        if kind == .quote { widget.width = 320; widget.height = 210 }
         preferences.widgets.append(widget)
         selectedWidget = widget.id
         editing = true

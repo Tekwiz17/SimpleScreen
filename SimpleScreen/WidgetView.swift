@@ -62,7 +62,7 @@ struct DesktopWidgetView: View {
     @ViewBuilder private func content(_ w: DesktopWidget) -> some View {
         switch w.kind {
         case .clock:
-            TimelineView(.periodic(from: .now, by: w.showSeconds ? 1 : 30)) { tick in
+            TimelineView(.periodic(from: .now, by: 1)) { tick in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(tick.date, format: w.showSeconds ? .dateTime.hour().minute().second() : .dateTime.hour().minute())
                         .font(clockFont(w)).monospacedDigit().minimumScaleFactor(0.4).lineLimit(1)
@@ -105,7 +105,7 @@ struct DesktopWidgetView: View {
                     Text(tick.date, format: .dateTime.month(.wide).year()).font(.system(size: 15, weight: .semibold))
                     HStack(spacing: 0) {
                         ForEach(0..<7) { day in
-                            let date = Calendar.current.date(byAdding: .day, value: day - Calendar.current.component(.weekday, from: tick.date) + 1, to: tick.date)!
+                            let date = Calendar.current.date(byAdding: .day, value: day - (Calendar.current.component(.weekday, from: tick.date) - Calendar.current.firstWeekday + 7) % 7, to: tick.date)!
                             VStack(spacing: 7) {
                                 Text(date, format: .dateTime.weekday(.narrow)).opacity(0.6)
                                 Text(date, format: .dateTime.day()).fontWeight(Calendar.current.isDateInToday(date) ? .bold : .regular)
@@ -142,6 +142,7 @@ struct DesktopWidgetView: View {
             }
         case .usage: usage(w)
         case .html: HTMLWidget(html: w.html, networkAllowed: w.networkAllowed)
+        default: ExtraWidgetView(store: store, services: services, widget: w)
         }
     }
     private func clockFont(_ w: DesktopWidget) -> Font {
