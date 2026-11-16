@@ -43,6 +43,15 @@ jobs:
           sleep 8
           if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/launch.log"; exit 1; fi
           "$RUNNER_TEMP/live-launch" "$pid"
+          kill "$pid"
+          wait "$pid" || true
+          swiftc -parse-as-library SimpleScreen/Models.swift Tests/SeedWidgets.swift -o "$RUNNER_TEMP/seed-widgets"
+          "$RUNNER_TEMP/seed-widgets"
+          "$app/Contents/MacOS/SimpleScreen" > "$RUNNER_TEMP/widgets-launch.log" 2>&1 &
+          pid=$!
+          sleep 8
+          if ! kill -0 "$pid" 2>/dev/null; then cat "$RUNNER_TEMP/widgets-launch.log"; exit 1; fi
+          "$RUNNER_TEMP/live-launch" "$pid" widgets
           ditto -c -k --keepParent "$app" "$RUNNER_TEMP/SimpleScreen-macOS.zip"
           cd "$RUNNER_TEMP"
           shasum -a 256 SimpleScreen-macOS.zip > SHA256SUMS.txt

@@ -43,7 +43,7 @@ final class DesktopPanel: NSPanel {
             else {
                 window = NSWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
                 window.isReleasedWhenClosed = false
-                window.level = NSWindow.Level(rawValue: CGWindowLevelForKey(.desktopWindow) + 1)
+                window.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)) + 1)
                 window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
                 window.ignoresMouseEvents = true
                 window.hasShadow = false
@@ -80,7 +80,7 @@ final class DesktopPanel: NSPanel {
                     self.showEffect(kind, on: activeScreen)
                 }))
             }
-            panel.level = NSWindow.Level(rawValue: CGWindowLevelForKey(.desktopIconWindow) + 1)
+            panel.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
             panel.ignoresMouseEvents = !store.editing && !widget.interaction
             if !panel.dragging && panel.frame != frame { panel.setFrame(frame, display: true) }
             panel.orderFrontRegardless()
@@ -104,7 +104,7 @@ final class DesktopPanel: NSPanel {
         window.isReleasedWhenClosed = false
         window.backgroundColor = .clear; window.isOpaque = false; window.hasShadow = false
         window.ignoresMouseEvents = true
-        window.level = .init(rawValue: CGWindowLevelForKey(.desktopIconWindow) + 2)
+        window.level = .init(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 2)
         window.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         window.contentView = NSHostingView(rootView: WeatherEffect(kind: kind))
         effects.append(window); window.orderFrontRegardless()

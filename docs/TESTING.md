@@ -9,7 +9,7 @@ Automated checks live in .github/workflows/macos.yml. The release job depends on
 - Four Python tests: usage-only filtering, missing values, invalid percentages, independently optional windows.
 - Xcode Debug and universal arm64/x86_64 Release compilation.
 - Ad-hoc signature, executable architectures, Info.plist, and generated icon checks.
-- Actual app launch with a visible settings window and a wallpaper window at the intended desktop layer.
+- Actual app launch with a visible settings window and a wallpaper window at the intended desktop layer; a second launch loads all eight saved widget types and verifies their window levels.
 - Release archive and checksum validation; downloaded release compared byte-for-byte.
 
 ## Manual on a physical Mac
