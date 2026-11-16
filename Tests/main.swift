@@ -39,4 +39,5 @@ check("Malformed input handled", UsageParser.parse(Data("oops".utf8), provider: 
 check("Out-of-range percent rejected", UsageParser.parse(Data(#"{"rate_limits":{"primary":{"used_percent":120}}}"#.utf8), provider: "Codex", captured: .now) == nil)
 check("Old snapshot labeled stale", UsageSnapshot(captured: Date().addingTimeInterval(-1000)).stale)
 check("New snapshot not stale", !UsageSnapshot(captured: Date()).stale)
+check("Boolean allowance rejected", UsageParser.parse(Data(#"{"rate_limits":{"primary":{"used_percent":true}}}"#.utf8), provider: "Codex", captured: .now) == nil)
 print("\(count) model checks passed.")

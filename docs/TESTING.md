@@ -4,9 +4,9 @@ Automated checks live in .github/workflows/macos.yml. The release job depends on
 
 ## Automated
 
-- 20 model checks: persistence, grid rounding/clamping, invalid geometry recovery, opt-in defaults, Codex/Claude parsing, missing/invalid windows, weekly-only plans, timestamps, stale readings.
+- 21 model checks: persistence, grid rounding/clamping, invalid geometry recovery, opt-in defaults, Codex/Claude parsing, missing/invalid windows, weekly-only plans, timestamps, stale readings.
 - 40 renders: five procedural styles × eight palettes, checking image dimensions and nonblank pixel diversity.
-- Four Python tests: usage-only filtering, missing values, invalid percentages, independently optional windows.
+- Five Python tests: usage-only filtering, missing values, invalid percentages, independently optional windows.
 - Xcode Debug and universal arm64/x86_64 Release compilation.
 - Ad-hoc signature, executable architectures, Info.plist, and generated icon checks.
 - Actual app launch with a visible settings window and a wallpaper window at the intended desktop layer; a second launch loads all eight saved widget types and verifies their window levels.

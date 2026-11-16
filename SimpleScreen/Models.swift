@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 import SwiftUI
 
 enum WallpaperStyle: String, Codable, CaseIterable, Identifiable {
@@ -124,6 +125,10 @@ struct UsageSnapshot {
     var stale: Bool { captured.map { Date().timeIntervalSince($0) > 900 } ?? true }
 }
 enum UsageParser {
+    private static func number(_ value: Any?) -> Double? {
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite else { return nil }
+        return number.doubleValue
+    }
     static func parse(_ data: Data, provider: String, captured: Date) -> UsageSnapshot? {
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         let payload = root["payload"] as? [String: Any] ?? root
@@ -131,11 +136,11 @@ enum UsageParser {
         var windows: [UsageWindow] = []
         for key in provider == "Claude Code" ? ["five_hour", "seven_day"] : ["primary", "secondary"] {
             guard let w = limits[key] as? [String: Any],
-                  let used = (w["used_percent"] ?? w["used_percentage"]) as? Double,
+                  let used = number(w["used_percent"] ?? w["used_percentage"]),
                   used.isFinite, (0...100).contains(used) else { continue }
             let minutes = w["window_minutes"] as? Int
             let label = key == "five_hour" ? "5 hours" : key == "seven_day" ? "7 days" : minutes.map { $0 >= 1440 ? "\($0 / 1440) days" : "\($0 / 60) hours" } ?? key.capitalized
-            let reset = (w["resets_at"] as? Double).map { Date(timeIntervalSince1970: $0) }
+            let reset = number(w["resets_at"]).map { Date(timeIntervalSince1970: $0) }
             windows.append(.init(label: label, used: used, reset: reset))
         }
         guard !windows.isEmpty else { return nil }

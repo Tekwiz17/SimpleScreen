@@ -328,7 +328,7 @@ struct WidgetEditor: View {
             }
             Picker("Display", selection: $widget.screenID) {
                 if !NSScreen.screens.contains(where: { screenID($0) == widget.screenID }) { Text("Main display").tag(widget.screenID) }
-                ForEach(NSScreen.screens, id: \.localizedName) { screen in Text(screen.localizedName).tag(screenID(screen)) }
+                ForEach(NSScreen.screens, id: \.self) { screen in Text(screen.localizedName).tag(screenID(screen)) }
             }
             Toggle(widget.kind == .weather ? "Click for weather effects" : "Enable click interactions", isOn: $widget.interaction)
             if widget.kind == .weather { Text("Eight seconds of layered rain and ripples, drifting snow, or soft sunlight. Effects respect Reduce Motion and energy settings.").font(.caption).foregroundStyle(.secondary) }

@@ -19,3 +19,7 @@ class StatuslineTests(unittest.TestCase):
     def test_windows_independently_optional(self):
         self.assertEqual(bridge.snapshot({"rate_limits": {"seven_day": {"used_percentage": 0}}}),
                          {"rate_limits": {"seven_day": {"used_percentage": 0}}})
+
+    def test_wrong_payload_shapes(self):
+        for payload in ([], None, {"rate_limits": []}, {"rate_limits": "unknown"}):
+            self.assertEqual(bridge.snapshot(payload), {"rate_limits": {}})

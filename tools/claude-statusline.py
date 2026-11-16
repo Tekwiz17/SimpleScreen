@@ -7,7 +7,9 @@ import sys
 import tempfile
 
 def snapshot(payload):
-    source = payload.get("rate_limits") or {}
+    source = payload.get("rate_limits") if isinstance(payload, dict) else None
+    if not isinstance(source, dict):
+        return {"rate_limits": {}}
     result = {}
     for key in ("five_hour", "seven_day"):
         window = source.get(key)
